@@ -1,18 +1,11 @@
-// index.js
-// ---------------------------------------------
-// RxJS + fetch + JSONPlaceholder
-// ---------------------------------------------
 
-// --- Dependencias RxJS (CommonJS) ---
 const { from, of, throwError } = require('rxjs');
 const { map, switchMap, catchError, finalize, tap } = require('rxjs/operators');
 
-// --- fetch en Node ---
-// Node 18+ ya trae fetch global. Si no existe, intentamos usar 'undici' (opcional).
 let _fetch = globalThis.fetch;
 if (!_fetch) {
   try {
-    _fetch = require('undici').fetch; // npm i undici
+    _fetch = require('undici').fetch;
     globalThis.fetch = _fetch;
   } catch (e) {
     console.error('⚠️  No hay fetch disponible. Usa Node 18+ o instala "undici": npm i undici');
@@ -20,9 +13,6 @@ if (!_fetch) {
   }
 }
 
-// ---------------------------------------------
-// Helper HTTP: fetch -> Observable de JSON
-// ---------------------------------------------
 function httpGetJson(url) {
   return from(_fetch(url)).pipe(
     switchMap((res) => {
@@ -34,10 +24,6 @@ function httpGetJson(url) {
   );
 }
 
-// ---------------------------------------------
-// 3) Obtener todos los usuarios
-//    - Devuelve Observable<[{ id, name, email }]> (datos relevantes)
-// ---------------------------------------------
 function getUsers() {
   const url = 'https://jsonplaceholder.typicode.com/users';
   return httpGetJson(url).pipe(
@@ -51,37 +37,23 @@ function getUsers() {
   );
 }
 
-// ---------------------------------------------
-// 4) Obtener publicaciones de un usuario
-//    Requisito: https://jsonplaceholder.typicode.com/users/{userId}/posts
-//    - Devuelve Observable<Post[]>
-// ---------------------------------------------
+
 function getUserPosts(userId) {
   const url = `https://jsonplaceholder.typicode.com/users/${userId}/posts`;
   return httpGetJson(url);
 }
 
-// ---------------------------------------------
-// 5) Obtener comentarios de una publicación
-//    Requisito: https://jsonplaceholder.typicode.com/posts/{postId}/comments
-//    - Devuelve Observable<Comment[]>
-// ---------------------------------------------
 function getPostComments(postId) {
   const url = `https://jsonplaceholder.typicode.com/posts/${postId}/comments`;
   return httpGetJson(url);
 }
 
-// ---------------------------------------------
-// 6) Encadenar: users -> posts(user1) -> comments(post1)
-//    - switchMap para encadenar
-//    - map para transformar
-//    - tap para logs intermedios
-// ---------------------------------------------
+
 const flow$ = getUsers().pipe(
   tap((users) => {
     console.log(`👥 Usuarios recibidos: ${users.length}`);
   }),
-  map((users) => users[0]), // seleccionamos el primer usuario
+  map((users) => users[0]), 
   tap((user) => {
     if (!user) {
       throw new Error('No hay usuarios disponibles.');
@@ -121,20 +93,17 @@ const flow$ = getUsers().pipe(
     );
   }),
 
-  // 7) Manejo de errores
+
   catchError((err) => {
     console.error('❌ Error en la cadena:', err.message);
-    // Devolvemos un valor "nulo" para que el flujo no explote aguas arriba
     return of(null);
   }),
 
-  // 8) Finalización
   finalize(() => {
     console.log('✅ Flujo completado (finalize).');
   })
 );
 
-// Ejecutar la cadena
 const subscription = flow$.subscribe((result) => {
   if (!result) return;
 
@@ -149,5 +118,3 @@ const subscription = flow$.subscribe((result) => {
   console.log('================================\n');
 });
 
-// Nota: la suscripción se completa sola (no hay streams infinitos).
-// Si añadieras intervals/websockets, recuerda desuscribir para evitar memory leaks.
